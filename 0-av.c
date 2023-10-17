@@ -3,8 +3,6 @@
 
 int main(int ac, char **av)
 {
-	int i;
-
 	printf("argv content is argv[]\n");
 
 	while (*av)

@@ -1,117 +1,44 @@
-
-
-#include "shell.h"
-
-int num_len(int num);
-char *_itoa(int num);
-int create_error(char **args, int err);
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 /**
- * num_len - Counts the digit length of a number.
- * @num: The number to measure.
- *
- * Return: The digit length.
+ * main - An entry main function
+ * Return: Nothing
  */
-int num_len(int num)
+int main(void)
 {
-	unsigned int num1;
-	int len = 1;
+	char *buffer, *token;
+	size_t bufsize = 32, characters;
+	const char s[2] = "-";
 
-	if (num < 0)
+	/* get the string from keyboard */
+	buffer = (char *)malloc(bufsize * sizeof(char));
+	if (buffer == NULL)
 	{
-		len++;
-		num1 = num * -1;
+		perror("Unable to allocate buffer");
+		free(buffer);
+		exit(1);
 	}
-	else
+	characters = getline(&buffer, &bufsize, stdin);
+	printf("   %zu   \n", characters);
+
+	buffer[strlen(buffer) -1] = '\0';
+	printf("miralo:    %s", buffer);
+
+	/* get the first token */
+	token = strtok(buffer, s);
+	printf("%s", token);
+
+	/* walk through other tokens */
+	while (token != NULL)
 	{
-		num1 = num;
+		printf(" %s", token);
+		token = strtok(NULL, s);
 	}
-	while (num1 > 9)
-	{
-		len++;
-		num1 /= 10;
-	}
+	printf("%s", token);
+	free(buffer);
+	free(token);
 
-	return (len);
-}
-
-/**
- * _itoa - Converts an integer to a string.
- * @num: The integer.
- *
- * Return: The converted string.
- */
-char *_itoa(int num)
-{
-	char *buffer;
-	int len = num_len(num);
-	unsigned int num1;
-
-	buffer = malloc(sizeof(char) * (len + 1));
-	if (!buffer)
-		return (NULL);
-
-	buffer[len] = '\0';
-
-	if (num < 0)
-	{
-		num1 = num * -1;
-		buffer[0] = '-';
-	}
-	else
-	{
-		num1 = num;
-	}
-
-	len--;
-	do {
-		buffer[len] = (num1 % 10) + '0';
-		num1 /= 10;
-		len--;
-	} while (num1 > 0);
-
-	return (buffer);
-}
-
-
-/**
- * create_error - Writes a custom error message to stderr.
- * @args: An array of arguments.
- * @err: The error value.
- *
- * Return: The error value.
- */
-int create_error(char **args, int err)
-{
-	char *error;
-
-	switch (err)
-	{
-	case -1:
-		error = error_env(args);
-		break;
-	case 1:
-		error = error_1(args);
-		break;
-	case 2:
-		if (*(args[0]) == 'e')
-			error = error_2_exit(++args);
-		else if (args[0][0] == ';' || args[0][0] == '&' || args[0][0] == '|')
-			error = error_2_syntax(args);
-		else
-			error = error_2_cd(args);
-		break;
-	case 126:
-		error = error_126(args);
-		break;
-	case 127:
-		error = error_127(args);
-		break;
-	}
-	write(STDERR_FILENO, error, _strlen(error));
-
-	if (error)
-		free(error);
-	return (err);
-
+	return (0);
 }

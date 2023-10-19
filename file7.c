@@ -1,115 +1,31 @@
-
-
-#include "shell.h"
-
-alias_t *add_alias_end(alias_t **head, char *name, char *value);
-void free_alias_list(alias_t *head);
-list_t *add_node_end(list_t **head, char *dir);
-void free_list(list_t *head);
+#include <stdio.h>
+#include <unistd.h>
 
 /**
- * add_alias_end - Adds a node to the end of a alias_t linked list.
- * @head: A pointer to the head of the list_t list.
- * @name: The name of the new alias to be added.
- * @value: The value of the new alias to be added.
+ * main - fork example
  *
- * Return: If an error occurs - NULL.
- *         Otherwise - a pointer to the new node.
+ * Return: Always 0.
  */
-alias_t *add_alias_end(alias_t **head, char *name, char *value)
+int main(void)
 {
-	alias_t *new_node = malloc(sizeof(alias_t));
-	alias_t *last;
+	pid_t my_pid;
+	pid_t child_pid;
 
-	if (!new_node)
-		return (NULL);
-
-	new_node->next = NULL;
-	new_node->name = malloc(sizeof(char) * (_strlen(name) + 1));
-	if (!new_node->name)
+	child_pid = fork();
+	if (child_pid == -1)
 	{
-		free(new_node);
-		return (NULL);
+		perror("Error:");
+		return (1);
 	}
-	new_node->value = value;
-	_strcpy(new_node->name, name);
-
-	if (*head)
+	my_pid = getpid();
+	printf("My pid is %u\n", my_pid);
+	if (child_pid == 0)
 	{
-		last = *head;
-		while (last->next != NULL)
-			last = last->next;
-		last->next = new_node;
+		printf("(%u) Nooooooooo!\n", my_pid);
 	}
 	else
-		*head = new_node;
-
-	return (new_node);
-}
-
-/**
- * add_node_end - Adds a node to the end of a list_t linked list.
- * @head: A pointer to the head of the list_t list.
- * @dir: The directory path for the new node to contain.
- *
- * Return: If an error occurs - NULL.
- *         Otherwise - a pointer to the new node.
- */
-list_t *add_node_end(list_t **head, char *dir)
-{
-	list_t *new_node = malloc(sizeof(list_t));
-	list_t *last;
-
-	if (!new_node)
-		return (NULL);
-
-	new_node->dir = dir;
-	new_node->next = NULL;
-
-	if (*head)
 	{
-		last = *head;
-		while (last->next != NULL)
-			last = last->next;
-		last->next = new_node;
+		printf("(%u) %u, I am your father\n", my_pid, child_pid);
 	}
-	else
-		*head = new_node;
-
-	return (new_node);
-}
-
-/**
- * free_alias_list - Frees a alias_t linked list.
- * @head: THe head of the alias_t list.
- */
-void free_alias_list(alias_t *head)
-{
-	alias_t *next;
-
-	while (head)
-	{
-		next = head->next;
-		free(head->name);
-		free(head->value);
-		free(head);
-		head = next;
-	}
-}
-
-/**
- * free_list - Frees a list_t linked list.
- * @head: The head of the list_t list.
- */
-void free_list(list_t *head)
-{
-	list_t *next;
-
-	while (head)
-	{
-		next = head->next;
-		free(head->dir);
-		free(head);
-		head = next;
-	}
+	return (0);
 }

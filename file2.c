@@ -1,56 +1,25 @@
-#include "shell.h"
+#include <stdio.h>
+#include <stdlib.h>
 
-int _strlen(const char *s);
-char *_strcpy(char *dest, const char *src);
-char *_strcat(char *dest, const char *src);
-char *_strncat(char *dest, const char *src, size_t n);
+//int input(char *s,int length);
 
-int _strlen(const char *s)
+int main()
 {
-	int length = 0;
+	char *buffer;
+	size_t bufsize = 32;
+	size_t characters;
 
-	if (!s)
-		return (length);
-	for (length = 0; s[length]; length++)
-		;
-	return (length);
-}
+	buffer = (char *)malloc(bufsize * sizeof(char));
+	if( buffer == NULL)
+	{
+		perror("Unable to allocate buffer");
+		exit(1);
+	}
 
-char *_strcpy(char *dest, const char *src)
-{
-	size_t i;
+	printf(" $ ");
+	characters = getline(&buffer,&bufsize,stdin);
+	printf("%zu characters were read.\n",characters);
+	printf("You typed: '%s'\n",buffer);
 
-	for (i = 0; src[i] != '\0'; i++)
-		dest[i] = src[i];
-	dest[i] = '\0';
-	return (dest);
-}
-
-char *_strcat(char *dest, const char *src)
-{
-	char *destTemp;
-	const char *srcTemp;
-
-	destTemp = dest;
-	srcTemp =  src;
-
-	while (*destTemp != '\0')
-		destTemp++;
-
-	while (*srcTemp != '\0')
-		*destTemp++ = *srcTemp++;
-	*destTemp = '\0';
-	return (dest);
-}
-
-char *_strncat(char *dest, const char *src, size_t n)
-{
-	size_t dest_len = _strlen(dest);
-	size_t i;
-
-	for (i = 0; i < n && src[i] != '\0'; i++)
-		dest[dest_len + i] = src[i];
-	dest[dest_len + i] = '\0';
-
-	return (dest);
+	return(0);
 }

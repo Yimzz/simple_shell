@@ -1,136 +1,106 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+#include <stdint.h>
 
 
-#include "shell.h"
+#if !(defined _POSIX_C_SOURCE)
+typedef long int ssize_t;
+#endif
 
-void sig_handler(int sig);
-int execute(char **args, char **front);
+/* Only include our version of getline() if the POSIX version isn't available. */
 
-/**
- * sig_handler - Prints a new prompt upon a signal.
- * @sig: The signal.
- */
-void sig_handler(int sig)
+#if !(defined _POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200809L
+
+#if !(defined SSIZE_MAX)
+#define SSIZE_MAX (SIZE_MAX >> 1)
+#endif
+
+ssize_t getline(char **pline_buf, size_t *pn, FILE *fin)
 {
-	char *new_prompt = "\n$ ";
+  const size_t INITALLOC = 16;
+  const size_t ALLOCSTEP = 16;
+  size_t num_read = 0;
 
-	(void)sig;
-	signal(SIGINT, sig_handler);
-	write(STDIN_FILENO, new_prompt, 3);
+  /* First check that none of our input pointers are NULL. */
+  if ((NULL == pline_buf) || (NULL == pn) || (NULL == fin))
+    {
+      errno = EINVAL;
+      return -1;
+    }
+
+  /* If output buffer is NULL, then allocate a buffer. */
+  if (NULL == *pline_buf)
+    {
+      *pline_buf = malloc(INITALLOC);
+      if (NULL == *pline_buf)
+	{
+	  /* Can't allocate memory. */
+	  return -1;
+	}
+      else
+	{
+	  /* Note how big the buffer is at this time. */
+	  *pn = INITALLOC;
+	}
+    }
+
+  /* Step through the file, pulling characters until either a newline or EOF. */
+
+  {
+    int c;
+    while (EOF != (c = getc(fin)))
+      {
+	/* Note we read a character. */
+	num_read++;
+
+	/* Reallocate the buffer if we need more room */
+	if (num_read >= *pn)
+	  {
+	    size_t n_realloc = *pn + ALLOCSTEP;
+	    char * tmp = realloc(*pline_buf, n_realloc + 1); /* +1 for the trailing NUL. */
+	    if (NULL != tmp)
+	      {
+		/* Use the new buffer and note the new buffer size. */
+		*pline_buf = tmp;
+		*pn = n_realloc;
+	      }
+	    else
+	      {
+		/* Exit with error and let the caller free the buffer. */
+		return -1;
+	      }
+
+	    /* Test for overflow. */
+	    if (SSIZE_MAX < *pn)
+	      {
+		errno = ERANGE;
+		return -1;
+	      }
+	  }
+
+	/* Add the character to the buffer. */
+	(*pline_buf)[num_read - 1] = (char) c;
+
+	/* Break from the loop if we hit the ending character. */
+	if (c == '\n')
+	  {
+	    break;
+	  }
+      }
+
+    /* Note if we hit EOF. */
+    if (EOF == c)
+      {
+	errno = 0;
+	return -1;
+      }
+  }
+
+  /* Terminate the string by suffixing NUL. */
+  (*pline_buf)[num_read] = '\0';
+
+  return (ssize_t) num_read;
 }
 
-/**
- * execute - Executes a command in a child process.
- * @args: An array of arguments.
- * @front: A double pointer to the beginning of args.
- *
- * Return: If an error occurs - a corresponding error code.
- *         O/w - The exit value of the last executed command.
- */
-int execute(char **args, char **front)
-{
-	pid_t child_pid;
-	int status, flag = 0, ret = 0;
-	char *command = args[0];
-
-	if (command[0] != '/' && command[0] != '.')
-	{
-		flag = 1;
-		command = get_location(command);
-	}
-
-	if (!command || (access(command, F_OK) == -1))
-	{
-		if (errno == EACCES)
-			ret = (create_error(args, 126));
-		else
-			ret = (create_error(args, 127));
-	}
-	else
-	{
-		child_pid = fork();
-		if (child_pid == -1)
-		{
-			if (flag)
-				free(command);
-			perror("Error child:");
-			return (1);
-		}
-		if (child_pid == 0)
-		{
-			execve(command, args, environ);
-			if (errno == EACCES)
-				ret = (create_error(args, 126));
-			free_env();
-			free_args(args, front);
-			free_alias_list(aliases);
-			_exit(ret);
-		}
-		else
-		{
-			wait(&status);
-			ret = WEXITSTATUS(status);
-		}
-	}
-	if (flag)
-		free(command);
-	return (ret);
-}
-
-/**
- * main - Runs a simple UNIX command interpreter.
- * @argc: The number of arguments supplied to the program.
- * @argv: An array of pointers to the arguments.
- *
- * Return: The return value of the last executed command.
- */
-int main(int argc, char *argv[])
-{
-	int ret = 0, retn;
-	int *exe_ret = &retn;
-	char *prompt = "$ ", *new_line = "\n";
-
-	name = argv[0];
-	hist = 1;
-	aliases = NULL;
-	signal(SIGINT, sig_handler);
-
-	*exe_ret = 0;
-	environ = _copyenv();
-	if (!environ)
-		exit(-100);
-
-	if (argc != 1)
-	{
-		ret = proc_file_commands(argv[1], exe_ret);
-		free_env();
-		free_alias_list(aliases);
-		return (*exe_ret);
-	}
-
-	if (!isatty(STDIN_FILENO))
-	{
-		while (ret != END_OF_FILE && ret != EXIT)
-			ret = handle_args(exe_ret);
-		free_env();
-		free_alias_list(aliases);
-		return (*exe_ret);
-	}
-
-	while (1)
-	{
-		write(STDOUT_FILENO, prompt, 2);
-		ret = handle_args(exe_ret);
-		if (ret == END_OF_FILE || ret == EXIT)
-		{
-			if (ret == END_OF_FILE)
-				write(STDOUT_FILENO, new_line, 1);
-			free_env();
-			free_alias_list(aliases);
-			exit(*exe_ret);
-		}
-	}
-
-	free_env();
-	free_alias_list(aliases);
-	return (*exe_ret);
-}
+#endif

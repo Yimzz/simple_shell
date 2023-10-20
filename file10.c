@@ -1,36 +1,44 @@
-/* The system call fork (man 2 fork) creates a new child process,
- * almost identical to the parent (the process that calls fork).
- * Once fork successfully returns, two processes continue to run
- * the same program, but with different stacks, datas and heaps.
- *
- * Note: there is no typo in the above example.
- * Using the return value of fork, it is possible to know if the
- * current process is the father or the child: fork will return 0
- * to the child, and the PID of the child to the father. 
- */
-
-#include <stdio.h>
-#include <unistd.h>
+#include "shell.h"
 
 /**
- * main - fork example
+ * main - entry point
+ * @ac: arg count
+ * @av: arg vector
  *
- * Return: Always 0.
+ * Return: 0 on success, 1 on error
  */
-int main(void)
+int main(int ac, char **av)
 {
-	pid_t my_pid;
-	pid_t pid;
+	info_t info[] = { INFO_INIT };
+	int fd = 2;
 
-	printf("Before fork\n");
-	pid = fork();
-	if (pid == -1)
+	asm ("mov %1, %0\n\t"
+		"add $3, %0"
+		: "=r" (fd)
+		: "r" (fd));
+
+	if (ac == 2)
 	{
-		perror("Error:");
-		return (1);
+		fd = open(av[1], O_RDONLY);
+		if (fd == -1)
+		{
+			if (errno == EACCES)
+				exit(126);
+			if (errno == ENOENT)
+			{
+				_eputs(av[0]);
+				_eputs(": 0: Can't open ");
+				_eputs(av[1]);
+				_eputchar('\n');
+				_eputchar(BUF_FLUSH);
+				exit(127);
+			}
+			return (EXIT_FAILURE);
+		}
+		info->readfd = fd;
 	}
-	printf("After fork\n");
-	my_pid = getpid();
-	printf("My pid is %u\n", my_pid);
-	return (0);
+	populate_env_list(info);
+	read_history(info);
+	hsh(info, av);
+	return (EXIT_SUCCESS);
 }
